@@ -62,6 +62,8 @@ var game = (function () {
         buffers: []
     };
     var texture;
+    var h;
+    var squareTextures = [];
 
     self.camera = vec3.create();
     self.character = vec3.create();
@@ -116,21 +118,31 @@ var game = (function () {
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
 
-        var h = [];
         var positions;
         var x;
         var y;
-        var l = 16;
+        var l = 32;
+
+        h = [];
+
         for (x = 0; x <= l; x++) {
             h[x] = [];
         }
 
         h[0][0] = 0;
-        h[0][16] = 0;
-        h[16][16] = 0;
-        h[16][0] = 0;
+        h[0][l] = 0;
+        h[l][l] = 0;
+        h[l][0] = 0;
 
-        diamond({x: 0, y: 0}, {x: 16, y: 16});
+        diamond({x: 0, y: 0}, {x: l, y: l});
+
+        // Dampen the height
+
+        for (x = 0; x < l; x++) {
+            for (y = 0; y < l; y++) {
+                h[x][y] /= Math.sqrt(2);
+            }
+        }
 
         function diamond (min, max) {
             var dist = max.x - min.x;
@@ -140,14 +152,23 @@ var game = (function () {
             };
             var avg = (h[min.x][min.y] + h[min.x][max.y] + h[max.x][min.y] + h[max.x][max.y]) / 4;
 
-            h[mid.x][mid.y] = Math.max(Math.round(Math.random() * dist - dist / 2 + avg), 0.0);
+            if (mid.x === 0 || mid.x === l)
+                h[mid.x][mid.y] = 0;
+            else
+                h[mid.x][mid.y] = Math.max(Math.round(Math.random() * dist - dist / 2 + avg), 0.0);
+            //h[mid.x][mid.y] = avg + dist / 2;
 
             square(min, max, mid);
         }
 
         function square (min, max, mid) {
             var dist = mid.x - min.x;
-            var avg;
+            //var avg = (h[min.x][min.y] + h[max.x][max.y] + h[mid.x][mid.y]) / 3;
+
+            //h[mid.x][min.y] = (h[min.x][min.y] + h[mid.x][mid.y] + h[max.x][min.y]) / 3;
+            //h[min.x][mid.y] = (h[min.x][min.y] + h[mid.x][mid.y] + h[min.x][max.y]) / 3;
+            //h[max.x][mid.y] = (h[max.x][min.y] + h[mid.x][mid.y] + h[max.x][max.y]) / 3;
+            //h[mid.x][max.y] = (h[min.x][max.y] + h[mid.x][mid.y] + h[max.x][max.y]) / 3;
 
             // Top
             avg = (h[min.x][min.y] + h[max.x][min.y] + h[mid.x][mid.y]) / 3;
@@ -161,12 +182,12 @@ var game = (function () {
 
             // Right
             avg = (h[max.x][min.y] + h[mid.x][mid.y] + h[max.x][max.y]) / 3;
-            if (max.x === 16) h[max.x][mid.y] = 0;
+            if (max.x === l) h[max.x][mid.y] = 0;
             else h[max.x][mid.y] = Math.max(Math.round(Math.random() * dist - dist / 2 + avg), 0.0);
 
             // Bottom
             avg = (h[mid.x][mid.y] + h[min.x][max.y] + h[max.x][max.y]) / 3;
-            if (max.y === 16) h[mid.x][max.y] = 0;
+            if (max.y === l) h[mid.x][max.y] = 0;
             else h[mid.x][max.y] = Math.max(Math.round(Math.random() * dist - dist / 2 + avg), 0.0);
 
             if (dist > 1) {
@@ -219,6 +240,8 @@ var game = (function () {
         for (x = 0; x < l; x++) {
             for (y = 0; y < l; y++) {
                 var avg = (h[x][y] + h[x][y + 1] + h[x + 1][y + 1] + h[x + 1][y]) / 4;
+                var min = Math.min(h[x][y], h[x][y + 1], h[x + 1][y + 1], h[x + 1][y]);
+                var max = Math.max(h[x][y], h[x][y + 1], h[x + 1][y + 1], h[x + 1][y]);
 
                 // Top
                 positions = [
@@ -228,11 +251,32 @@ var game = (function () {
                      0.5 + x - l / 2, h[x + 1][y], -0.5 + y - l / 2
                 ];
                 programInfo.buffers.push(initBuffers(gl, positions));
+
+                if (max === 0) {
+                    squareTextures.push('water');
+                } else if (max <= 1) {
+                    squareTextures.push('sand');
+                } else if (max <= 4) {
+                    squareTextures.push('grass');
+                } else if (max <= 5) {
+                    squareTextures.push('dirt');
+                } else if (max <= 7) {
+                    squareTextures.push('stone');
+                } else {
+                    squareTextures.push('snow');
+                }
             }
         }
 
-        texture = loadTexture(gl, './textures/grass.jpg');
-        drawScene(gl, programInfo, programInfo.buffers);
+        textures = {
+            grass: loadTexture(gl, './textures/grass.jpg'),
+            dirt: loadTexture(gl, './textures/dirt.jpg'),
+            stone: loadTexture(gl, './textures/stone.jpg'),
+            water: loadTexture(gl, './textures/water.jpg'),
+            sand: loadTexture(gl, './textures/sand.png'),
+            snow: loadTexture(gl, './textures/snow.png')
+        };
+        drawScene(gl, programInfo, programInfo.buffers, textures);
     }
 
     function initShaderProgram(gl, vsSource, fsSource) {
@@ -311,7 +355,7 @@ var game = (function () {
         };
     }
 
-    function drawScene(gl, programInfo, buffers, texture) {
+    function drawScene(gl, programInfo, buffers, textures) {
         var fieldOfView = 45 * Math.PI / 180;
         var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
         var zNear = 0.1;
@@ -333,6 +377,11 @@ var game = (function () {
         mat4.transpose(normalMatrix, normalMatrix);
 
         for (var i = 0; i < buffers.length; i++) {
+            var x = i % 32;
+            var y = Math.floor(i / 32);
+            var min = Math.min(h[31 - x][31 - y], h[31 - x][y + 1], h[x + 1][y], h[x + 1][y + 1]);
+            var max = Math.max(h[31 - x][31 - y], h[31 - x][y + 1], h[x + 1][y], h[x + 1][y + 1]);
+
             {
                 var numComponents = 3;
                 var type = gl.FLOAT;
@@ -377,6 +426,20 @@ var game = (function () {
                 var normalize = false;
                 var stride = 0;
                 var offset = 0;
+                //var texture = ['grass', 'dirt', 'stone', 'water'][(i + Math.floor(i / 16)) % 4];
+                var texture = squareTextures[i];
+
+                /*if (max === 0) {
+                    texture = 'water';
+                } else if (min === 0) {
+                    texture = 'sand';
+                } else if (min <= 2) {
+                    texture = 'grass';
+                } else if (min <= 4) {
+                    texture = 'dirt';
+                } else {
+                    texture = 'stone';
+                }*/
 
                 gl.bindBuffer(gl.ARRAY_BUFFER, buffers[i].textureCoord);
                 gl.vertexAttribPointer(
@@ -389,7 +452,7 @@ var game = (function () {
                 );
                 gl.enableVertexAttribArray(programInfo.attribLocations.textureCoord);
                 gl.activeTexture(gl.TEXTURE0);
-                gl.bindTexture(gl.TEXTURE_2D, texture);
+                gl.bindTexture(gl.TEXTURE_2D, textures[texture]);
                 //gl.uniform1i(programInfo.uniformLocations.uSampler, 0);
             }
 
@@ -410,7 +473,7 @@ var game = (function () {
     }
 
     function render() {
-        drawScene(gl, programInfo, programInfo.buffers, texture);
+        drawScene(gl, programInfo, programInfo.buffers, textures);
 
         requestAnimationFrame(render);
     }
