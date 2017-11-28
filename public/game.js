@@ -64,6 +64,10 @@ var game = (function () {
     var texture;
     var h;
     var squareTextures = [];
+    var you = {
+        position: vec3.create()
+    };
+    var others = [];
 
     self.camera = vec3.create();
     self.character = vec3.create();
@@ -256,11 +260,11 @@ var game = (function () {
                     squareTextures.push('water');
                 } else if (max <= 1) {
                     squareTextures.push('sand');
-                } else if (max <= 4) {
+                } else if (max - min <= 2 && max <= 5) {
                     squareTextures.push('grass');
-                } else if (max <= 5) {
+                } else if (max - min <= 1 && max <= 6) {
                     squareTextures.push('dirt');
-                } else if (max <= 7) {
+                } else if (max - min > max - 6 && max <= 8) {
                     squareTextures.push('stone');
                 } else {
                     squareTextures.push('snow');
@@ -513,4 +517,6 @@ var game = (function () {
     function isPowerOf2(value) {
         return (value & (value - 1)) === 0;
     }
+
+    function LERP() {}
 })();
