@@ -1,4 +1,6 @@
 import { vec3, mat4 } from 'gl-matrix';
+import generateTerrain from './generate-terrain.js';
+import loadTextures from './load-textures.js';
 
 var self = {};
 var canvas = document.getElementById('canvas');
@@ -62,7 +64,6 @@ var programInfo = {
     buffers: []
 };
 var textures;
-var h;
 var squareTextures = [];
 
 self.camera = vec3.create();
@@ -118,164 +119,15 @@ function main() {
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    var positions;
-    var x;
-    var y;
-    var l = 32;
+    //Generate terrain
+    var edgeLength = 32;
+    var terrain = generateTerrain(edgeLength);
+    programInfo.buffers = terrain.buffer.map(initBuffers);
+    squareTextures = terrain.textures;
 
-    h = [];
+    //Load Textures
+    textures = loadTextures(gl);
 
-    for (x = 0; x <= l; x++) {
-        h[x] = [];
-    }
-
-    h[0][0] = 0;
-    h[0][l] = 0;
-    h[l][l] = 0;
-    h[l][0] = 0;
-
-    diamond({x: 0, y: 0}, {x: l, y: l});
-
-    // Dampen the height
-
-    for (x = 0; x < l; x++) {
-        for (y = 0; y < l; y++) {
-            h[x][y] /= Math.sqrt(2);
-        }
-    }
-
-    function diamond (min, max) {
-        var dist = max.x - min.x;
-        var mid = {
-            x: (max.x - min.x) / 2 + min.x,
-            y: (max.y - min.y) / 2 + min.y
-        };
-        var avg = (h[min.x][min.y] + h[min.x][max.y] + h[max.x][min.y] + h[max.x][max.y]) / 4;
-
-        if (mid.x === 0 || mid.x === l)
-            h[mid.x][mid.y] = 0;
-        else
-            h[mid.x][mid.y] = Math.max(Math.round(Math.random() * dist - dist / 2 + avg), 0.0);
-        //h[mid.x][mid.y] = avg + dist / 2;
-
-        square(min, max, mid);
-    }
-
-    function square (min, max, mid) {
-        var dist = mid.x - min.x;
-        //var avg = (h[min.x][min.y] + h[max.x][max.y] + h[mid.x][mid.y]) / 3;
-
-        //h[mid.x][min.y] = (h[min.x][min.y] + h[mid.x][mid.y] + h[max.x][min.y]) / 3;
-        //h[min.x][mid.y] = (h[min.x][min.y] + h[mid.x][mid.y] + h[min.x][max.y]) / 3;
-        //h[max.x][mid.y] = (h[max.x][min.y] + h[mid.x][mid.y] + h[max.x][max.y]) / 3;
-        //h[mid.x][max.y] = (h[min.x][max.y] + h[mid.x][mid.y] + h[max.x][max.y]) / 3;
-
-        // Top
-        avg = (h[min.x][min.y] + h[max.x][min.y] + h[mid.x][mid.y]) / 3;
-        if (min.y === 0) h[mid.x][min.y] = 0;
-        else h[mid.x][min.y] = Math.max(Math.round(Math.random() * dist - dist / 2 + avg), 0.0);
-
-        // Left
-        avg = (h[min.x][min.y] + h[mid.x][mid.y] + h[min.x][max.y]) / 3;
-        if (min.x === 0) h[min.x][mid.y] = 0;
-        else h[min.x][mid.y] = Math.max(Math.round(Math.random() * dist - dist / 2 + avg), 0.0);
-
-        // Right
-        avg = (h[max.x][min.y] + h[mid.x][mid.y] + h[max.x][max.y]) / 3;
-        if (max.x === l) h[max.x][mid.y] = 0;
-        else h[max.x][mid.y] = Math.max(Math.round(Math.random() * dist - dist / 2 + avg), 0.0);
-
-        // Bottom
-        avg = (h[mid.x][mid.y] + h[min.x][max.y] + h[max.x][max.y]) / 3;
-        if (max.y === l) h[mid.x][max.y] = 0;
-        else h[mid.x][max.y] = Math.max(Math.round(Math.random() * dist - dist / 2 + avg), 0.0);
-
-        if (dist > 1) {
-            diamond({x: min.x, y: min.y}, {x: mid.x, y: mid.y});
-            diamond({x: mid.x, y: min.y}, {x: max.x, y: mid.y});
-            diamond({x: min.x, y: mid.y}, {x: mid.x, y: max.y});
-            diamond({x: mid.x, y: mid.y}, {x: max.x, y: max.y});
-        }
-    }
-
-    /*var positions = [
-        // Front face
-        -0.5 + x, -0.5 + y,  0.5 + z,
-        0.5 + x, -0.5 + y,  0.5 + z,
-        0.5 + x,  0.5 + y,  0.5 + z,
-        -0.5 + x,  0.5 + y,  0.5 + z,
-
-        // Back face
-        -0.5 + x, -0.5 + y, -0.5 + z,
-        -0.5 + x,  0.5 + y, -0.5 + z,
-        0.5 + x,  0.5 + y, -0.5 + z,
-        0.5 + x, -0.5 + y, -0.5 + z,
-
-        // Top face
-        -0.5 + x,  0.5 + y, -0.5 + z,
-        -0.5 + x,  0.5 + y,  0.5 + z,
-        0.5 + x,  0.5 + y,  0.5 + z,
-        0.5 + x,  0.5 + y, -0.5 + z,
-
-        // Bottom face
-        -0.5 + x, -0.5 + y, -0.5 + z,
-        0.5 + x, -0.5 + y, -0.5 + z,
-        0.5 + x, -0.5 + y,  0.5 + z,
-        -0.5 + x, -0.5 + y,  0.5 + z,
-
-        // Right face
-        0.5 + x, -0.5 + y, -0.5 + z,
-        0.5 + x,  0.5 + y, -0.5 + z,
-        0.5 + x,  0.5 + y,  0.5 + z,
-        0.5 + x, -0.5 + y,  0.5 + z,
-
-        // Left face
-        -0.5 + x, -0.5 + y, -0.5 + z,
-        -0.5 + x, -0.5 + y,  0.5 + z,
-        -0.5 + x,  0.5 + y,  0.5 + z,
-        -0.5 + x,  0.5 + y, -0.5 + z
-        ];*/
-
-    // Top
-    for (x = 0; x < l; x++) {
-        for (y = 0; y < l; y++) {
-            var avg = (h[x][y] + h[x][y + 1] + h[x + 1][y + 1] + h[x + 1][y]) / 4;
-            var min = Math.min(h[x][y], h[x][y + 1], h[x + 1][y + 1], h[x + 1][y]);
-            var max = Math.max(h[x][y], h[x][y + 1], h[x + 1][y + 1], h[x + 1][y]);
-
-            // Top
-            positions = [
-                -0.5 + x - l / 2, h[x][y], -0.5 + y - l / 2,
-                -0.5 + x - l / 2, h[x][y + 1],  0.5 + y - l / 2,
-                    0.5 + x - l / 2, h[x + 1][y + 1],  0.5 + y - l / 2,
-                    0.5 + x - l / 2, h[x + 1][y], -0.5 + y - l / 2
-            ];
-            programInfo.buffers.push(initBuffers(gl, positions));
-
-            if (max === 0) {
-                squareTextures.push('water');
-            } else if (max <= 1) {
-                squareTextures.push('sand');
-            } else if (max - min <= 2 && max <= 5) {
-                squareTextures.push('grass');
-            } else if (max - min <= 1 && max <= 6) {
-                squareTextures.push('dirt');
-            } else if (max - min > max - 6 && max <= 8) {
-                squareTextures.push('stone');
-            } else {
-                squareTextures.push('snow');
-            }
-        }
-    }
-
-    textures = {
-        grass: loadTexture(gl, './textures/grass.jpg'),
-        dirt: loadTexture(gl, './textures/dirt.jpg'),
-        stone: loadTexture(gl, './textures/stone.jpg'),
-        water: loadTexture(gl, './textures/water.jpg'),
-        sand: loadTexture(gl, './textures/sand.png'),
-        snow: loadTexture(gl, './textures/snow.png')
-    };
     drawScene(gl, programInfo, programInfo.buffers, textures);
 }
 
@@ -309,50 +161,6 @@ function loadShader(gl, type, source) {
     }
 
     return shader;
-}
-
-function initBuffers(gl, positions) {
-    var positionBuffer = gl.createBuffer();
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
-
-    var normalBuffer = gl.createBuffer();
-    var vertexNormals = [
-        0.0,  1.0,  0.0,
-        0.0,  1.0,  0.0,
-        0.0,  1.0,  0.0,
-        0.0,  1.0,  0.0
-    ];
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexNormals), gl.STATIC_DRAW);
-
-    var textureCoordBuffer = gl.createBuffer();
-    var textureCoordinates = [
-        0.0,  0.0,
-        1.0,  0.0,
-        1.0,  1.0,
-        0.0,  1.0
-    ];
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates), gl.STATIC_DRAW);
-
-    var indexBuffer = gl.createBuffer();
-    var indices = [
-        0,  1,  2,      0,  2,  3
-    ];
-
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
-
-    return {
-        position: positionBuffer,
-        normal: normalBuffer,
-        textureCoord: textureCoordBuffer,
-        indices: indexBuffer
-    };
 }
 
 function drawScene(gl, programInfo, buffers, textures) {
@@ -478,38 +286,47 @@ function render() {
     requestAnimationFrame(render);
 }
 
-function loadTexture(gl, url) {
-    var texture = gl.createTexture();
-    var level = 0;
-    var internalFormat = gl.RGBA;
-    var width = 1;
-    var height = 1;
-    var border = 0;
-    var srcFormat = gl.RGBA;
-    var srcType = gl.UNSIGNED_BYTE;
-    var pixel = new Uint8Array([0, 0, 255, 255]);
-    var image = new Image();
 
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, width, height, border, srcFormat, srcType, pixel);
-    image.onload = function () {
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, srcFormat, srcType, image);
+function initBuffers(positions) {
+    var positionBuffer = gl.createBuffer();
 
-        if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
-            gl.generateMipmap(gl.TEXTURE_2D);
-        } else {
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        }
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+
+    var normalBuffer = gl.createBuffer();
+    var vertexNormals = [
+        0.0,  1.0,  0.0,
+        0.0,  1.0,  0.0,
+        0.0,  1.0,  0.0,
+        0.0,  1.0,  0.0
+    ];
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexNormals), gl.STATIC_DRAW);
+
+    var textureCoordBuffer = gl.createBuffer();
+    var textureCoordinates = [
+        0.0,  0.0,
+        1.0,  0.0,
+        1.0,  1.0,
+        0.0,  1.0
+    ];
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates), gl.STATIC_DRAW);
+
+    var indexBuffer = gl.createBuffer();
+    var indices = [
+        0,  1,  2,      0,  2,  3
+    ];
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+
+    return {
+        position: positionBuffer,
+        normal: normalBuffer,
+        textureCoord: textureCoordBuffer,
+        indices: indexBuffer
     };
-
-    image.src = url;
-
-    return texture;
-}
-
-function isPowerOf2(value) {
-    return (value & (value - 1)) === 0;
 }
