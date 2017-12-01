@@ -3,13 +3,24 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "node ./index.js"
+    "build": "",
+    "prestart": "npm run lint && npm run copy-resources && npm run pack",
+    "start": "node ./index.js",
+    "copy-resources": "cpx \"resources/**/*.*\" public",
+    "pack": "rollup -c",
+    "lint": "eslint src/**"
   },
   "dependencies": {
+    "copy": "^0.3.1",
+    "cpx": "^1.5.0",
+    "eslint": "^4.12.1",
     "express": "^4.16.2",
     "gl-matrix": "^2.4.0",
     "path": "^0.12.7",
     "rollup": "^0.52.0",
+    "rollup-plugin-commonjs": "^8.2.6",
+    "rollup-plugin-node-resolve": "^3.0.0",
+    "rollup-plugin-sourcemaps": "^0.4.2",
     "socket.io": "^2.0.4"
   }
 }

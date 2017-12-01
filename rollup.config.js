@@ -1,14 +1,17 @@
 import resolve from 'rollup-plugin-node-resolve';
 import commonjs from 'rollup-plugin-commonjs';
+import sourcemaps from 'rollup-plugin-sourcemaps';
 
 export default {
-  input: 'main.js',
+  input: './src/game.js',
   output: {
-    file: 'bundle.js',
+    file: './public/game.js',
     format: 'iife'
   },
-  name: 'MyModule',
+  sourcemap: true,
+  name: 'ThatGameThing',
   plugins: [
+    sourcemaps(),
     resolve(),
     commonjs()
   ]
